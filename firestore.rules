@@ -1,0 +1,365 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() && request.auth.token.email == 'singhanshika5005@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isNonEmptyString(val, maxLen) {
+      return val is string && val.size() >= 1 && val.size() <= maxLen;
+    }
+
+    function isBoundedString(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    function isIsoDate(val) {
+      return val is string && val.size() == 10 && val.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function isTime24(val) {
+      return val is string && val.size() == 5 && val.matches('^\\d{2}:\\d{2}$');
+    }
+
+    function isValidUser(data, userId) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'role', 'department', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'name', 'email', 'role', 'department', 'avatarUrl', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && isNonEmptyString(data.name, 120)
+        && isNonEmptyString(data.email, 160)
+        && data.role in ['Care Coordinator', 'Head Nurse', 'Attending Physician', 'Admin']
+        && isNonEmptyString(data.department, 120)
+        && (!('avatarUrl' in data) || isBoundedString(data.avatarUrl, 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidPatient(data, patientId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'name', 'age', 'gender', 'phone', 'email', 'address',
+          'medicalCondition', 'dischargeDate', 'attendingPhysician', 'ward',
+          'status', 'emergencyContactName', 'emergencyContactPhone', 'careSummary',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'name', 'age', 'gender', 'phone', 'email', 'address',
+          'medicalCondition', 'dischargeDate', 'attendingPhysician', 'ward',
+          'status', 'emergencyContactName', 'emergencyContactPhone', 'careSummary',
+          'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == patientId
+        && isValidId(data.ownerId)
+        && isNonEmptyString(data.name, 120)
+        && data.age is number && data.age >= 0 && data.age <= 120
+        && data.gender in ['Female', 'Male', 'Other']
+        && isNonEmptyString(data.phone, 40)
+        && isBoundedString(data.email, 160)
+        && isBoundedString(data.address, 240)
+        && isNonEmptyString(data.medicalCondition, 200)
+        && isIsoDate(data.dischargeDate)
+        && isNonEmptyString(data.attendingPhysician, 120)
+        && isBoundedString(data.ward, 120)
+        && data.status in ['Active', 'Monitoring', 'Recovered', 'Discharged']
+        && isBoundedString(data.emergencyContactName, 120)
+        && isBoundedString(data.emergencyContactPhone, 40)
+        && isBoundedString(data.careSummary, 1500)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidMedicine(data, medicineId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'patientId', 'medicineName', 'dosageInstructions',
+          'frequency', 'startDate', 'endDate', 'reminderTimings', 'logs',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'patientId', 'medicineName', 'dosageInstructions',
+          'frequency', 'startDate', 'endDate', 'reminderTimings', 'logs',
+          'notes', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == medicineId
+        && isValidId(data.ownerId)
+        && isValidId(data.patientId)
+        && isNonEmptyString(data.medicineName, 140)
+        && isNonEmptyString(data.dosageInstructions, 240)
+        && data.frequency in ['Once Daily', 'Twice Daily', 'Three Times Daily', 'Every 12 Hours', 'As Directed']
+        && isIsoDate(data.startDate)
+        && isIsoDate(data.endDate)
+        && data.reminderTimings is list
+        && data.reminderTimings.size() >= 1 && data.reminderTimings.size() <= 8
+        && isTime24(data.reminderTimings[0])
+        && data.logs is list
+        && data.logs.size() <= 60
+        && (data.logs.size() == 0 || (data.logs[0] is map && data.logs[0].keys().hasAll(['id', 'date', 'time', 'status'])))
+        && (!('notes' in data) || isBoundedString(data.notes, 500))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAppointment(data, appointmentId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'patientId', 'title', 'doctorName', 'department',
+          'appointmentDate', 'appointmentTime', 'type', 'status', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'patientId', 'title', 'doctorName', 'department',
+          'appointmentDate', 'appointmentTime', 'type', 'status', 'notes', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == appointmentId
+        && isValidId(data.ownerId)
+        && isValidId(data.patientId)
+        && isNonEmptyString(data.title, 160)
+        && isNonEmptyString(data.doctorName, 120)
+        && isNonEmptyString(data.department, 120)
+        && isIsoDate(data.appointmentDate)
+        && isTime24(data.appointmentTime)
+        && data.type in ['In-Person', 'Telehealth', 'Lab Review', 'Post-Op Check']
+        && data.status in ['Upcoming', 'Completed', 'Cancelled', 'Missed']
+        && (!('notes' in data) || isBoundedString(data.notes, 600))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidFollowup(data, followupId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'patientId', 'title', 'dueDate', 'assignedStaff',
+          'priority', 'status', 'staffNotes', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'patientId', 'title', 'dueDate', 'assignedStaff',
+          'priority', 'status', 'staffNotes', 'completedAt', 'completedBy', 'createdAt', 'updatedAt'
+        ])
+        && isValidId(data.id)
+        && data.id == followupId
+        && isValidId(data.ownerId)
+        && isValidId(data.patientId)
+        && isNonEmptyString(data.title, 200)
+        && isIsoDate(data.dueDate)
+        && isNonEmptyString(data.assignedStaff, 120)
+        && data.priority in ['High', 'Medium', 'Low']
+        && data.status in ['Pending', 'Completed']
+        && data.staffNotes is list
+        && data.staffNotes.size() <= 30
+        && (data.staffNotes.size() == 0 || (data.staffNotes[0] is map && data.staffNotes[0].keys().hasAll(['id', 'author', 'role', 'note', 'createdAt'])))
+        && (!('completedAt' in data) || isBoundedString(data.completedAt, 40))
+        && (!('completedBy' in data) || isBoundedString(data.completedBy, 120))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidActivity(data, activityId) {
+      return data.keys().hasAll(['id', 'ownerId', 'timestamp', 'actor', 'action', 'entityType', 'entityName', 'details'])
+        && data.keys().hasOnly(['id', 'ownerId', 'timestamp', 'actor', 'action', 'entityType', 'entityName', 'details'])
+        && isValidId(data.id)
+        && data.id == activityId
+        && isValidId(data.ownerId)
+        && data.timestamp is timestamp
+        && isNonEmptyString(data.actor, 120)
+        && isNonEmptyString(data.action, 100)
+        && data.entityType in ['patient', 'medicine', 'appointment', 'followup', 'system']
+        && isNonEmptyString(data.entityName, 200)
+        && isBoundedString(data.details, 500);
+    }
+
+    match /test/{docId} {
+      allow get: if isSignedIn() && docId == 'connection';
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create: if isSignedIn()
+        && isValidId(userId)
+        && isValidUser(incoming(), userId)
+        && isOwner(userId)
+        && (incoming().role in ['Care Coordinator', 'Head Nurse', 'Attending Physician'] || isBootstrappedAdmin())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidUser(incoming(), userId)
+        && (isOwner(userId) || isAdmin())
+        && incoming().uid == existing().uid
+        && incoming().role == existing().role
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'department', 'avatarUrl', 'updatedAt'])
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isAdmin());
+      allow list: if isBootstrappedAdmin();
+      allow create, update, delete: if isValidId(adminId) && isBootstrappedAdmin();
+    }
+
+    match /patients/{patientId} {
+      allow get: if isSignedIn() && isValidId(patientId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(patientId)
+        && isValidPatient(incoming(), patientId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isSignedIn()
+        && isValidId(patientId)
+        && isValidPatient(incoming(), patientId)
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().ownerId == existing().ownerId
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+          (incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'age', 'gender', 'phone', 'email', 'address',
+            'medicalCondition', 'dischargeDate', 'attendingPhysician', 'ward',
+            'status', 'emergencyContactName', 'emergencyContactPhone', 'careSummary', 'updatedAt'
+          ]))
+        );
+      allow delete: if isSignedIn() && isValidId(patientId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /medicines/{medicineId} {
+      allow get: if isSignedIn() && isValidId(medicineId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(medicineId)
+        && isValidMedicine(incoming(), medicineId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/patients/$(incoming().patientId))
+        && getAfter(/databases/$(database)/documents/patients/$(incoming().patientId)).data.ownerId == request.auth.uid;
+      allow update: if isSignedIn()
+        && isValidId(medicineId)
+        && isValidMedicine(incoming(), medicineId)
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().ownerId == existing().ownerId
+        && incoming().patientId == existing().patientId
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin() ||
+          (incoming().diff(existing()).affectedKeys().hasOnly(['logs', 'updatedAt'])) ||
+          (incoming().diff(existing()).affectedKeys().hasOnly([
+            'medicineName', 'dosageInstructions', 'frequency',
+            'startDate', 'endDate', 'reminderTimings', 'notes', 'updatedAt'
+          ]))
+        );
+      allow delete: if isSignedIn() && isValidId(medicineId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /appointments/{appointmentId} {
+      allow get: if isSignedIn() && isValidId(appointmentId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(appointmentId)
+        && isValidAppointment(incoming(), appointmentId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/patients/$(incoming().patientId))
+        && getAfter(/databases/$(database)/documents/patients/$(incoming().patientId)).data.ownerId == request.auth.uid;
+      allow update: if isSignedIn()
+        && isValidId(appointmentId)
+        && isValidAppointment(incoming(), appointmentId)
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().ownerId == existing().ownerId
+        && incoming().patientId == existing().patientId
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (!(existing().status in ['Completed', 'Cancelled']) || isAdmin())
+        && (
+          isAdmin() ||
+          (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])) ||
+          (incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'doctorName', 'department', 'appointmentDate',
+            'appointmentTime', 'type', 'status', 'notes', 'updatedAt'
+          ]))
+        );
+      allow delete: if isSignedIn() && isValidId(appointmentId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /followups/{followupId} {
+      allow get: if isSignedIn() && isValidId(followupId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(followupId)
+        && isValidFollowup(incoming(), followupId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && existsAfter(/databases/$(database)/documents/patients/$(incoming().patientId))
+        && getAfter(/databases/$(database)/documents/patients/$(incoming().patientId)).data.ownerId == request.auth.uid;
+      allow update: if isSignedIn()
+        && isValidId(followupId)
+        && isValidFollowup(incoming(), followupId)
+        && (existing().ownerId == request.auth.uid || isAdmin())
+        && incoming().ownerId == existing().ownerId
+        && incoming().patientId == existing().patientId
+        && incoming().id == existing().id
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (existing().status != 'Completed' || isAdmin())
+        && (
+          isAdmin() ||
+          (incoming().diff(existing()).affectedKeys().hasOnly(['staffNotes', 'updatedAt'])) ||
+          (incoming().diff(existing()).affectedKeys().hasOnly(['status', 'completedAt', 'completedBy', 'staffNotes', 'updatedAt']))
+        );
+      allow delete: if isSignedIn() && isValidId(followupId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+
+    match /activities/{activityId} {
+      allow get: if isSignedIn() && isValidId(activityId) && (existing().ownerId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().ownerId == request.auth.uid || isBootstrappedAdmin());
+      allow create: if isSignedIn()
+        && isValidId(activityId)
+        && isValidActivity(incoming(), activityId)
+        && incoming().ownerId == request.auth.uid
+        && incoming().timestamp == request.time;
+      allow update: if false;
+      allow delete: if isSignedIn() && isValidId(activityId) && (existing().ownerId == request.auth.uid || isAdmin());
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "MediCare AI",
+  "description": "Smart Patient Follow-up & Medicine Reminder System for post-discharge care coordination, medication adherence tracking, appointment scheduling, and rule-based patient monitoring.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,235 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Authenticated clinical staff profile in MediCare AI",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "role": { "type": "string", "enum": ["Care Coordinator", "Head Nurse", "Attending Physician", "Admin"] },
+        "department": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "avatarUrl": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role", "department", "createdAt", "updatedAt"]
+    },
+    "AdminMarker": {
+      "title": "AdminMarker",
+      "description": "Trusted server/bootstrapped administrator marker document",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email", "maxLength": 160 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "Discharged patient record managed by a clinical staff coordinator",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "age": { "type": "number" },
+        "gender": { "type": "string", "enum": ["Female", "Male", "Other"] },
+        "phone": { "type": "string", "minLength": 3, "maxLength": 40 },
+        "email": { "type": "string", "maxLength": 160 },
+        "address": { "type": "string", "maxLength": 240 },
+        "medicalCondition": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "dischargeDate": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "attendingPhysician": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "ward": { "type": "string", "maxLength": 120 },
+        "status": { "type": "string", "enum": ["Active", "Monitoring", "Recovered", "Discharged"] },
+        "emergencyContactName": { "type": "string", "maxLength": 120 },
+        "emergencyContactPhone": { "type": "string", "maxLength": 40 },
+        "careSummary": { "type": "string", "maxLength": 1500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "name",
+        "age",
+        "gender",
+        "phone",
+        "email",
+        "address",
+        "medicalCondition",
+        "dischargeDate",
+        "attendingPhysician",
+        "ward",
+        "status",
+        "emergencyContactName",
+        "emergencyContactPhone",
+        "careSummary",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MedicineSchedule": {
+      "title": "MedicineSchedule",
+      "description": "Medication reminder schedule and bounded dose logs for a patient",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "patientId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "medicineName": { "type": "string", "minLength": 1, "maxLength": 140 },
+        "dosageInstructions": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "frequency": { "type": "string", "enum": ["Once Daily", "Twice Daily", "Three Times Daily", "Every 12 Hours", "As Directed"] },
+        "startDate": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "endDate": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "reminderTimings": { "type": "array", "description": "Bounded up to 8 daily HH:mm reminder times" },
+        "logs": { "type": "array", "description": "Bounded up to 60 dose logs" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "patientId",
+        "medicineName",
+        "dosageInstructions",
+        "frequency",
+        "startDate",
+        "endDate",
+        "reminderTimings",
+        "logs",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Follow-up clinic, lab, or telehealth appointment for a discharged patient",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "patientId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "doctorName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "department": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "appointmentDate": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "appointmentTime": { "type": "string", "minLength": 5, "maxLength": 5, "pattern": "^\\d{2}:\\d{2}$" },
+        "type": { "type": "string", "enum": ["In-Person", "Telehealth", "Lab Review", "Post-Op Check"] },
+        "status": { "type": "string", "enum": ["Upcoming", "Completed", "Cancelled", "Missed"] },
+        "notes": { "type": "string", "maxLength": 600 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "patientId",
+        "title",
+        "doctorName",
+        "department",
+        "appointmentDate",
+        "appointmentTime",
+        "type",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Followup": {
+      "title": "Followup",
+      "description": "Post-discharge follow-up task with staff notes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "patientId": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "dueDate": { "type": "string", "minLength": 10, "maxLength": 10, "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+        "assignedStaff": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "priority": { "type": "string", "enum": ["High", "Medium", "Low"] },
+        "status": { "type": "string", "enum": ["Pending", "Completed"] },
+        "staffNotes": { "type": "array", "description": "Bounded up to 30 staff notes" },
+        "completedAt": { "type": "string", "maxLength": 40 },
+        "completedBy": { "type": "string", "maxLength": 120 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": [
+        "id",
+        "ownerId",
+        "patientId",
+        "title",
+        "dueDate",
+        "assignedStaff",
+        "priority",
+        "status",
+        "staffNotes",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "Audit trail of staff actions in the dashboard",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "actor": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "action": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "entityType": { "type": "string", "enum": ["patient", "medicine", "appointment", "followup", "system"] },
+        "entityName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "details": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "ownerId", "timestamp", "actor", "action", "entityType", "entityName", "details"]
+    },
+    "ConnectionCheck": {
+      "title": "ConnectionCheck",
+      "description": "Authenticated Firestore reachability probe document",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "maxLength": 40 }
+      },
+      "required": ["status"]
+    }
+  },
+  "firestore": {
+    "/test/{docId}": {
+      "schema": { "$ref": "#/entities/ConnectionCheck" },
+      "description": "Authenticated Firestore connectivity check document"
+    },
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Authenticated staff user profiles"
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminMarker" },
+      "description": "Authorized admin UID markers"
+    },
+    "/patients/{patientId}": {
+      "schema": { "$ref": "#/entities/Patient" },
+      "description": "Discharged patient records owned by staff coordinator"
+    },
+    "/medicines/{medicineId}": {
+      "schema": { "$ref": "#/entities/MedicineSchedule" },
+      "description": "Patient medication reminder schedules and bounded dose logs"
+    },
+    "/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/Appointment" },
+      "description": "Patient follow-up appointments"
+    },
+    "/followups/{followupId}": {
+      "schema": { "$ref": "#/entities/Followup" },
+      "description": "Post-discharge follow-up tasks and staff notes"
+    },
+    "/activities/{activityId}": {
+      "schema": { "$ref": "#/entities/ActivityLog" },
+      "description": "Staff activity audit entries"
+    }
+  }
+}
